@@ -18,3 +18,6 @@ body:not(.header--menu-open) .header-menu {pointer-events:none}
 .gallery-reel-list{display:flex!important;overflow-x:auto!important;scroll-snap-type:x mandatory;transform:none!important;height:100%!important}
 .gallery-reel-item{position:relative!important;flex:0 0 auto!important;height:100%!important;margin:0 10px 0 0!important;transform:none!important;opacity:1!important;scroll-snap-align:center}
 .gallery-reel-item-wrapper,.gallery-reel-item-src{height:100%!important;width:100%!important}
+
+/* Keep reel photos above the section background, without the hosted stacking controller. */
+.gallery-reel-item-wrapper{z-index:0!important}
