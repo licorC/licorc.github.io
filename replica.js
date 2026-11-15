@@ -15,8 +15,8 @@ function props(el){try{return JSON.parse(el.dataset.props||'{}')}catch{return {}
 function ratio(el){const im=el.querySelector('img');const d=(im?.dataset.imageDimensions||'1x1').split('x').map(Number);return d[0]/d[1]||1}
 function galleries(){
  document.querySelectorAll('.gallery-masonry').forEach(g=>{const p=props(g),w=g.querySelector('.gallery-masonry-wrapper');if(!w)return;const n=innerWidth<600?1:Number(p.numColumns||p.columns||2),gap=Number(p.gutter||20),cw=(w.clientWidth-gap*(n-1))/n,heights=Array(n).fill(0);w.querySelectorAll('.gallery-masonry-item').forEach(it=>{const c=heights.indexOf(Math.min(...heights)),h=cw/ratio(it);Object.assign(it.style,{left:(cw+gap)*c+'px',top:heights[c]+'px',width:cw+'px',height:h+'px'});heights[c]+=h+gap});w.style.height=Math.max(...heights)-gap+'px'});
- document.querySelectorAll('.gallery-strips').forEach(g=>{const p=props(g),w=g.querySelector('.gallery-strips-wrapper');if(!w)return;const gap=Number(p.gutter||20),target=Number(p.rowHeight||312),width=w.clientWidth;w.style.gap=gap+'px';let row=[],sum=0;function flush(last){const h=(width-gap*(row.length-1))/sum;row.forEach(it=>Object.assign(it.style,{width:h*ratio(it)+'px',height:h+'px'}));row=[];sum=0}w.querySelectorAll('.gallery-strips-item').forEach(it=>{row.push(it);sum+=ratio(it);if(sum*target+gap*(row.length-1)>=width)flush(false)});if(row.length)flush(true)});
- document.querySelectorAll('.gallery-reel').forEach(g=>{const h=Math.round(g.clientHeight),list=g.querySelector('.gallery-reel-list'),items=[...g.querySelectorAll('.gallery-reel-item')];items.forEach(it=>{it.style.width=Math.round(h*ratio(it))+'px';it.style.height=h+'px';const src=it.querySelector('.gallery-reel-item-src');if(src){src.dataset.loaded='true';src.dataset.visible='true'}});if(items.length){list.style.paddingLeft=Math.max(0,(g.clientWidth-items[0].clientWidth)/2)+'px';list.style.paddingRight=Math.max(0,(g.clientWidth-items[items.length-1].clientWidth)/2)+'px'}});
+ document.querySelectorAll('.gallery-strips').forEach(g=>{const p=props(g),w=g.querySelector('.gallery-strips-wrapper');if(!w)return;const gap=Number(p.gutter||20),target=Number(p.rowHeight||312),width=w.clientWidth;w.style.gap=gap+'px';let row=[],sum=0;function flush(last){const h=(width-gap*(row.length-1))/sum;row.forEach(it=>Object.assign(it.style,{width:h*ratio(it)+'px',height:h+'px'}));row=[];sum=0}w.querySelectorAll('.gallery-strips-item').forEach(it=>{if(row.length&&(sum+ratio(it))*target+gap*row.length>width)flush(false);row.push(it);sum+=ratio(it)});if(row.length)flush(true)});
+ document.querySelectorAll('.gallery-reel').forEach(g=>{if(g.dataset.localRing)return;const h=Math.round(g.clientHeight),list=g.querySelector('.gallery-reel-list'),items=[...g.querySelectorAll('.gallery-reel-item')];items.forEach(it=>{it.style.width=Math.round(h*ratio(it))+'px';it.style.height=h+'px';const src=it.querySelector('.gallery-reel-item-src');if(src){src.dataset.loaded='true';src.dataset.visible='true'}});if(items.length){list.style.paddingLeft=Math.max(0,(g.clientWidth-items[0].clientWidth)/2)+'px';list.style.paddingRight=Math.max(0,(g.clientWidth-items[items.length-1].clientWidth)/2)+'px'}});
 }
 addEventListener('resize',galleries);addEventListener('load',galleries);galleries();
 document.querySelectorAll('.gallery-reel').forEach(g=>{g.querySelectorAll('.gallery-reel-control-btn').forEach((b,i)=>b.addEventListener('click',()=>g.querySelector('.gallery-reel-list').scrollBy({left:g.clientWidth*(i?1:-1)*.8,behavior:'smooth'})))});
@@ -99,3 +99,22 @@ fitImages();addEventListener('resize',fitImages);document.fonts?.ready.then(fitI
 
 // Rebuild native rounded section clips; the exported M0,0 path hides backgrounds.
 (()=>{function clips(){document.querySelectorAll('.has-section-divider').forEach(s=>{let d;try{d=JSON.parse(s.dataset.currentContext).divider}catch{return}if(d?.type!=='rounded')return;const h=d.height.unit==='vw'?innerWidth*d.height.value/100:d.height.value;const a=h/Math.max(1,s.clientHeight),y=1-a;const p=s.querySelector('.section-divider-clip');if(p)p.setAttribute('d',`M0,${y} C0,${y} .25,1 .5,1 S1,${y} 1,${y} L1,-1 L0,-1 Z`);})}clips();addEventListener('resize',clips);addEventListener('load',clips);})();
+
+/* Circular reel: three identical bands keep first/last photos adjacent in both directions. */
+(()=>{
+const style=document.createElement('style');style.textContent='.gallery-reel[data-local-ring] .gallery-reel-list{padding:0!important;gap:0!important;scroll-behavior:auto!important}.gallery-reel[data-local-ring] .gallery-reel-item{margin:0!important}';document.head.append(style);
+document.querySelectorAll('.gallery-reel').forEach(g=>{
+ const list=g.querySelector('.gallery-reel-list'),base=[...list.children];if(!base.length)return;
+ g.dataset.localRing='true';const n=base.length;
+ list.replaceChildren(...base.map(e=>e.cloneNode(true)),...base,...base.map(e=>e.cloneNode(true)));
+ const items=[...list.children];items.forEach((e,i)=>{e.dataset.ringIndex=i%n;e.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));});
+ let active=n,centers=[],total=0,timer;
+ function geometry(){const h=g.clientHeight;let x=0;centers=[];items.forEach(e=>{let d=(e.querySelector('img')?.dataset.imageDimensions||'1x1').split('x').map(Number);let w=Math.round(h*d[0]/d[1]);e.style.width=w+'px';e.style.height=h+'px';centers.push(x+w/2-list.clientWidth/2);x+=w});total=x/3;list.scrollTo({left:centers[active],behavior:'instant'});g.dataset.activeSlide=String(active%n)}
+ function settle(){let best=0;centers.forEach((x,i)=>{if(Math.abs(x-list.scrollLeft)<Math.abs(centers[best]-list.scrollLeft))best=i});active=best;if(active<n){active+=n;list.scrollTo({left:list.scrollLeft+total,behavior:'instant'})}else if(active>=2*n){active-=n;list.scrollTo({left:list.scrollLeft-total,behavior:'instant'})}g.dataset.activeSlide=String(active%n)}
+ function move(delta){clearTimeout(timer);active+=delta;list.scrollTo({left:centers[active],behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});g.dataset.activeSlide=String(active%n);timer=setTimeout(settle,650)}
+ g.querySelectorAll('.gallery-reel-control-btn').forEach((b,i)=>b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();move(i?1:-1)},true));
+ list.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();e.stopImmediatePropagation();move(e.key==='ArrowRight'?1:-1)}},true);
+ list.addEventListener('scroll',()=>{clearTimeout(timer);timer=setTimeout(settle,150)},{passive:true});
+ addEventListener('resize',geometry);geometry();
+});
+})();
