@@ -90,3 +90,9 @@ document.querySelectorAll('[data-controller="BackgroundBokeh"]').forEach(host=>{
  }catch(e){console.warn('Background animation unavailable',e)}
 });
 })();
+
+(()=>{
+function fitImages(){document.querySelectorAll('.fluid-image-component-root[data-is-image-stretched="false"]').forEach(root=>{const img=root.querySelector('img'),wrapper=root.querySelector('.fluid-image-animation-wrapper');if(!img||!wrapper)return;const ds=(img.dataset.imageDimensions||'1x1').split('x').map(Number),ratio=ds[0]/ds[1]||1,w=wrapper.clientWidth,h=wrapper.clientHeight;if(!w||!h)return;const width=Math.min(w,h*ratio),height=width/ratio;root.style.setProperty('--image-component-container-width',width+'px');root.style.setProperty('--image-component-container-height',height+'px');root.style.setProperty('--image-component-native-aspect-ratio',String(ratio))})}
+document.querySelectorAll('svg[data-image-mask-id]').forEach(svg=>{document.body.append(svg);svg.style.cssText='position:absolute;width:0;height:0;overflow:hidden;pointer-events:none'});
+fitImages();addEventListener('resize',fitImages);document.fonts?.ready.then(fitImages);addEventListener('load',fitImages);
+})();
